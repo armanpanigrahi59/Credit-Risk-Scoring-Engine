@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+uvicorn.log
+uvicorn.err.log
+uvicorn.pid
+node_modules/
+dist/
+.env
+npm-debug.log*

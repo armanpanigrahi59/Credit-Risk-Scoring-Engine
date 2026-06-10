@@ -1,0 +1,145 @@
+{
+  "dataset": {
+    "name": "default-of-credit-card-clients",
+    "source": "OpenML/UCI",
+    "openml_data_id": 42477,
+    "records": 30000,
+    "raw_features": 23,
+    "engineered_features": 12,
+    "model_features_before_encoding": 35,
+    "positive_default_rate": 0.2212
+  },
+  "models": {
+    "logistic_regression": {
+      "auc_roc": 0.7611,
+      "accuracy": 0.757,
+      "avg_batch_latency_ms_per_record": 0.0053,
+      "classification_report": {
+        "0": {
+          "precision": 0.8742724097788126,
+          "recall": 0.8035523218489193,
+          "f1-score": 0.8374219446922391,
+          "support": 4673.0
+        },
+        "1": {
+          "precision": 0.46158357771261,
+          "recall": 0.5930670685757348,
+          "f1-score": 0.5191292875989446,
+          "support": 1327.0
+        },
+        "accuracy": 0.757,
+        "macro avg": {
+          "precision": 0.6679279937457113,
+          "recall": 0.6983096952123271,
+          "f1-score": 0.6782756161455918,
+          "support": 6000.0
+        },
+        "weighted avg": {
+          "precision": 0.7829993964201708,
+          "recall": 0.757,
+          "f1-score": 0.7670262186984389,
+          "support": 6000.0
+        }
+      }
+    },
+    "random_forest": {
+      "auc_roc": 0.7787,
+      "accuracy": 0.7938,
+      "avg_batch_latency_ms_per_record": 0.0255,
+      "classification_report": {
+        "0": {
+          "precision": 0.8739660426643447,
+          "recall": 0.8591910977958485,
+          "f1-score": 0.8665155929642818,
+          "support": 4673.0
+        },
+        "1": {
+          "precision": 0.5320056899004267,
+          "recall": 0.5636774679728711,
+          "f1-score": 0.5473838272960118,
+          "support": 1327.0
+        },
+        "accuracy": 0.7938333333333333,
+        "macro avg": {
+          "precision": 0.7029858662823858,
+          "recall": 0.7114342828843598,
+          "f1-score": 0.7069497101301467,
+          "support": 6000.0
+        },
+        "weighted avg": {
+          "precision": 0.7983358113113915,
+          "recall": 0.7938333333333333,
+          "f1-score": 0.7959342841239828,
+          "support": 6000.0
+        }
+      }
+    },
+    "extra_trees": {
+      "auc_roc": 0.7736,
+      "accuracy": 0.775,
+      "avg_batch_latency_ms_per_record": 0.0265,
+      "classification_report": {
+        "0": {
+          "precision": 0.8732869018198157,
+          "recall": 0.831799700406591,
+          "f1-score": 0.8520385795703639,
+          "support": 4673.0
+        },
+        "1": {
+          "precision": 0.4925758553905746,
+          "recall": 0.5749811605124341,
+          "f1-score": 0.5305980528511822,
+          "support": 1327.0
+        },
+        "accuracy": 0.775,
+        "macro avg": {
+          "precision": 0.6829313786051951,
+          "recall": 0.7033904304595126,
+          "f1-score": 0.691318316210773,
+          "support": 6000.0
+        },
+        "weighted avg": {
+          "precision": 0.789086308717882,
+          "recall": 0.775,
+          "f1-score": 0.7809466497443048,
+          "support": 6000.0
+        }
+      }
+    },
+    "hist_gradient_boosting": {
+      "auc_roc": 0.7812,
+      "accuracy": 0.8183,
+      "avg_batch_latency_ms_per_record": 0.0082,
+      "classification_report": {
+        "0": {
+          "precision": 0.8410432134018656,
+          "recall": 0.9454312005135888,
+          "f1-score": 0.8901873866612936,
+          "support": 4673.0
+        },
+        "1": {
+          "precision": 0.6586345381526104,
+          "recall": 0.3707611152976639,
+          "f1-score": 0.47444551591128253,
+          "support": 1327.0
+        },
+        "accuracy": 0.8183333333333334,
+        "macro avg": {
+          "precision": 0.7498388757772381,
+          "recall": 0.6580961579056264,
+          "f1-score": 0.682316451286288,
+          "support": 6000.0
+        },
+        "weighted avg": {
+          "precision": 0.8007004947259053,
+          "recall": 0.8183333333333334,
+          "f1-score": 0.7982391429137495,
+          "support": 6000.0
+        }
+      }
+    }
+  },
+  "selected_model": "hist_gradient_boosting",
+  "selected_auc_roc": 0.7812,
+  "model_path": "D:\\projects\\creditriskscoringengine\\models\\credit_risk_model.joblib"
+}

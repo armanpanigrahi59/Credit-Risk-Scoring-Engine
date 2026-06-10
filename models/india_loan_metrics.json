@@ -1,0 +1,150 @@
+{
+  "dataset": {
+    "name": "Loan Default Data",
+    "source": "Zenodo / originally Kaggle",
+    "source_url": "https://zenodo.org/records/17833064",
+    "records": 148670,
+    "features": 21,
+    "numeric_features": 11,
+    "categorical_features": 10,
+    "positive_default_rate": 0.2464,
+    "localization_note": "Input labels and rupee scaling are India-focused; the public dataset is not a private Indian bureau dataset."
+  },
+  "models": {
+    "logistic_regression": {
+      "auc_roc": 0.8148,
+      "average_precision": 0.7358,
+      "accuracy": 0.8254,
+      "avg_batch_latency_ms_per_record": 0.0016,
+      "classification_report": {
+        "0": {
+          "precision": 0.8727910602910602,
+          "recall": 0.8993573150049095,
+          "f1-score": 0.8858750604475315,
+          "support": 22406.0
+        },
+        "1": {
+          "precision": 0.660698164309359,
+          "recall": 0.5992085152838428,
+          "f1-score": 0.6284528409904108,
+          "support": 7328.0
+        },
+        "accuracy": 0.8253850810519944,
+        "macro avg": {
+          "precision": 0.7667446123002096,
+          "recall": 0.7492829151443761,
+          "f1-score": 0.7571639507189711,
+          "support": 29734.0
+        },
+        "weighted avg": {
+          "precision": 0.8205203687677567,
+          "recall": 0.8253850810519944,
+          "f1-score": 0.8224328722393597,
+          "support": 29734.0
+        }
+      }
+    },
+    "random_forest": {
+      "auc_roc": 0.8712,
+      "average_precision": 0.8164,
+      "accuracy": 0.882,
+      "avg_batch_latency_ms_per_record": 0.0134,
+      "classification_report": {
+        "0": {
+          "precision": 0.8943941228033561,
+          "recall": 0.9563063465143266,
+          "f1-score": 0.9243146474559455,
+          "support": 22406.0
+        },
+        "1": {
+          "precision": 0.8305348796953436,
+          "recall": 0.6547489082969432,
+          "f1-score": 0.7322396032048837,
+          "support": 7328.0
+        },
+        "accuracy": 0.881986950965225,
+        "macro avg": {
+          "precision": 0.8624645012493498,
+          "recall": 0.8055276274056349,
+          "f1-score": 0.8282771253304146,
+          "support": 29734.0
+        },
+        "weighted avg": {
+          "precision": 0.8786558927133744,
+          "recall": 0.881986950965225,
+          "f1-score": 0.876977392990627,
+          "support": 29734.0
+        }
+      }
+    },
+    "extra_trees": {
+      "auc_roc": 0.8481,
+      "average_precision": 0.7692,
+      "accuracy": 0.8483,
+      "avg_batch_latency_ms_per_record": 0.0133,
+      "classification_report": {
+        "0": {
+          "precision": 0.8771020356555822,
+          "recall": 0.9288137106132286,
+          "f1-score": 0.9022175015715431,
+          "support": 22406.0
+        },
+        "1": {
+          "precision": 0.7344764441484934,
+          "recall": 0.6020742358078602,
+          "f1-score": 0.6617172853393326,
+          "support": 7328.0
+        },
+        "accuracy": 0.8482881549741037,
+        "macro avg": {
+          "precision": 0.8057892399020379,
+          "recall": 0.7654439732105445,
+          "f1-score": 0.7819673934554379,
+          "support": 29734.0
+        },
+        "weighted avg": {
+          "precision": 0.8419516914515078,
+          "recall": 0.8482881549741037,
+          "f1-score": 0.8429457727577394,
+          "support": 29734.0
+        }
+      }
+    },
+    "hist_gradient_boosting": {
+      "auc_roc": 0.8772,
+      "average_precision": 0.8251,
+      "accuracy": 0.8945,
+      "avg_batch_latency_ms_per_record": 0.0098,
+      "classification_report": {
+        "0": {
+          "precision": 0.884779743599984,
+          "recall": 0.9887530125859145,
+          "f1-score": 0.9338813362841184,
+          "support": 22406.0
+        },
+        "1": {
+          "precision": 0.9463258785942492,
+          "recall": 0.6063045851528385,
+          "f1-score": 0.7390834234384097,
+          "support": 7328.0
+        },
+        "accuracy": 0.8944978812134257,
+        "macro avg": {
+          "precision": 0.9155528110971166,
+          "recall": 0.7975287988693764,
+          "f1-score": 0.8364823798612641,
+          "support": 29734.0
+        },
+        "weighted avg": {
+          "precision": 0.8999479038622418,
+          "recall": 0.8944978812134257,
+          "f1-score": 0.8858730257529638,
+          "support": 29734.0
+        }
+      }
+    }
+  },
+  "selected_model": "hist_gradient_boosting",
+  "selected_auc_roc": 0.8772,
+  "model_path": "D:\\projects\\creditriskscoringengine\\models\\india_loan_model.joblib"
+}
