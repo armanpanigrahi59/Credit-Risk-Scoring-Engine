@@ -677,3 +677,174 @@ th {
     font-size: clamp(2rem, 13vw, 3.2rem);
   }
 }
+
+/* Engine Selection Navigation Panel */
+.engine-tabs {
+  display: flex;
+  gap: 14px;
+  margin: 18px 0 24px;
+  border-bottom: 1px solid rgba(217, 227, 222, 0.6);
+  padding-bottom: 12px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(217, 227, 222, 0.9);
+  border-radius: 99px;
+  padding: 10px 22px;
+  cursor: pointer;
+  font-weight: 800;
+  color: #55605d;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 10px rgba(41, 55, 51, 0.03);
+}
+
+.tab-btn svg {
+  color: #2f6f73;
+  transition: color 0.3s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #17201f;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(41, 55, 51, 0.06);
+}
+
+.tab-btn.active {
+  background: #2f6f73;
+  color: #ffffff;
+  border-color: #2f6f73;
+  box-shadow: 0 8px 22px rgba(47, 111, 115, 0.3);
+}
+
+.tab-btn.active svg {
+  color: #ffffff;
+}
+
+/* Credit Card Sub-tabs (Form Section Controller) */
+.form-subtabs {
+  display: flex;
+  gap: 6px;
+  margin: 14px 0 20px;
+  background: #e4ece9;
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid rgba(217, 227, 222, 0.5);
+}
+
+.subtab-btn {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 850;
+  color: #5c6865;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.subtab-btn:hover {
+  color: #17201f;
+}
+
+.subtab-btn.active {
+  background: #ffffff;
+  color: #2f6f73;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Statement Records Layout inside Form Panel */
+.billing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.billing-header {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 14px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: #6d7b77;
+  font-weight: 850;
+}
+
+.billing-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 14px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(217, 227, 222, 0.6);
+  transition: all 0.2s ease;
+}
+
+.billing-row:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: #2f6f73;
+  box-shadow: 0 4px 12px rgba(41, 55, 51, 0.04);
+}
+
+.billing-row .row-label {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #2d3b38;
+}
+
+.billing-row input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cbd7d1;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #fcfdfc;
+  font-size: 0.88rem;
+}
+
+.billing-row input:focus {
+  border-color: #2f6f73;
+  outline: 3px solid rgba(47, 111, 115, 0.15);
+}
+
+/* Risk-specific Text coloring for Decision Panel */
+.risk-text.low {
+  color: #21633a;
+}
+.risk-text.medium {
+  color: #8b6200;
+}
+.risk-text.high {
+  color: #9b4d12;
+}
+.risk-text.critical {
+  color: #a23832;
+}
+
+/* Animation Utilities */
+.fade-in {
+  animation: visualFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes visualFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

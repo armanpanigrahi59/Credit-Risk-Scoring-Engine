@@ -1,26 +1,20 @@
 import express from "express";
 import { databaseStatus } from "../db.js";
-import { getIndiaMlMetrics, getMlHealth, getMlMetrics, runTraining } from "../services/mlService.js";
+import { getIndiaMlMetrics, getMlMetrics, runTraining } from "../services/mlService.js";
+import { getMlStatus } from "../services/monitorService.js";
 
 const router = express.Router();
 
-router.get("/health", async (_req, res) => {
-  try {
-    const ml = await getMlHealth();
-    res.json({
-      status: "ok",
-      backend: "ok",
-      database: databaseStatus(),
-      ml
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: "degraded",
-      backend: "ok",
-      database: databaseStatus(),
-      ml: { status: "unavailable", detail: error.message }
-    });
-  }
+router.get("/health", (_req, res) => {
+  const mlStatus = getMlStatus();
+  const dbStatus = databaseStatus();
+
+  res.json({
+    status: mlStatus.status === "active" && dbStatus === "connected" ? "healthy" : "degraded",
+    backend: "ok",
+    database: dbStatus,
+    ml: mlStatus
+  });
 });
 
 router.get("/metrics", async (_req, res, next) => {

@@ -1,20 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Activity,
   BadgeCheck,
   BarChart3,
-  CheckCircle2,
   Database,
   FileClock,
   Gauge,
   IndianRupee,
-  Loader2,
-  RefreshCw,
   ShieldAlert,
-  Sparkles,
   TrendingUp,
-  WalletCards
+  WalletCards,
+  CreditCard
 } from "lucide-react";
 import {
   Bar,
@@ -27,122 +23,143 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+
 import AuroraBackground from "./components/AuroraBackground";
-import { fetchHealth, fetchIndiaMetrics, fetchScores, submitIndiaScore } from "./services/api";
+import Header from "./components/Header";
+import IndiaLoanForm from "./components/IndiaLoanForm";
+import CreditCardForm from "./components/CreditCardForm";
+import HistoryTable from "./components/HistoryTable";
+
+import {
+  initialApplicant,
+  applicantPresets,
+  initialCreditCardApplicant,
+  ccPresets,
+  payStatusOptions,
+  filterOptions
+} from "./config/constants";
+
+import {
+  fetchHealth,
+  fetchIndiaMetrics,
+  fetchMetrics,
+  fetchScores,
+  submitIndiaScore,
+  submitScore
+} from "./services/api";
+
 import "./styles.css";
 
-const initialApplicant = {
-  loan_amount_inr: 2800000,
-  annual_income_inr: 1200000,
-  property_value_inr: 4200000,
-  term_months: 240,
-  cibil_score: 760,
-  dti_ratio: 32,
-  age_band: "35-44",
-  gender: "Joint",
-  region: "North",
-  loan_product: "Home Loan",
-  loan_purpose: "Home Purchase",
-  employment_type: "Salaried",
-  bureau_type: "CIBIL",
-  co_applicant: true,
-  pre_approved: false
-};
-
-const applicantPresets = {
-  "Prime Home": initialApplicant,
-  "Thin Margin": {
-    ...initialApplicant,
-    loan_amount_inr: 3600000,
-    annual_income_inr: 780000,
-    property_value_inr: 4100000,
-    cibil_score: 672,
-    dti_ratio: 54,
-    age_band: "25-34",
-    region: "south",
-    co_applicant: false
-  },
-  "Vehicle Buyer": {
-    ...initialApplicant,
-    loan_amount_inr: 850000,
-    annual_income_inr: 900000,
-    property_value_inr: 1100000,
-    term_months: 60,
-    cibil_score: 720,
-    dti_ratio: 28,
-    loan_product: "Vehicle Loan",
-    loan_purpose: "Vehicle Purchase"
-  },
-  "Business Need": {
-    ...initialApplicant,
-    loan_amount_inr: 1800000,
-    annual_income_inr: 1050000,
-    property_value_inr: 2500000,
-    term_months: 96,
-    cibil_score: 690,
-    dti_ratio: 46,
-    loan_product: "Business Loan",
-    loan_purpose: "Business Expansion",
-    employment_type: "Self-employed"
-  }
-};
-
-const filterOptions = ["All", "Low", "Medium", "High", "Critical"];
-
 function App() {
-  const [applicant, setApplicant] = useState(initialApplicant);
-  const [health, setHealth] = useState(null);
-  const [metrics, setMetrics] = useState(null);
+  const [activeEngine, setActiveEngine] = useState("india"); // "india" | "credit_card"
+  const [indiaApplicant, setIndiaApplicant] = useState(initialApplicant);
+  const [ccApplicant, setCcApplicant] = useState(initialCreditCardApplicant);
+
+  const [health, setHealth] = useState({
+    backend: "checking",
+    database: "checking",
+    ml: { status: "checking" }
+  });
+  const [indiaMetrics, setIndiaMetrics] = useState(null);
+  const [ccMetrics, setCcMetrics] = useState(null);
   const [history, setHistory] = useState([]);
-  const [latest, setLatest] = useState(null);
+  
+  const [latestIndia, setLatestIndia] = useState(null);
+  const [latestCc, setLatestCc] = useState(null);
+
+  const [ccFormTab, setCcFormTab] = useState("profile"); // "profile" | "history" | "billing"
   const [riskFilter, setRiskFilter] = useState("All");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  async function loadDashboard() {
-    const [healthData, metricsData, scoreData] = await Promise.all([
-      fetchHealth(),
-      fetchIndiaMetrics(),
-      fetchScores()
-    ]);
-    setHealth(healthData);
-    setMetrics(metricsData);
-    setHistory(scoreData.items || []);
+  // Health check and metrics retrieval
+  async function loadDashboardData() {
+    try {
+      const [healthData, indiaMetricsData, ccMetricsData, scoreData] = await Promise.all([
+        fetchHealth().catch(() => ({
+          backend: "offline",
+          database: "offline",
+          ml: { status: "unavailable" }
+        })),
+        fetchIndiaMetrics().catch(() => null),
+        fetchMetrics().catch(() => null),
+        fetchScores().catch(() => ({ items: [] }))
+      ]);
+
+      setHealth(healthData);
+      if (indiaMetricsData) setIndiaMetrics(indiaMetricsData);
+      if (ccMetricsData) setCcMetrics(ccMetricsData);
+      setHistory(scoreData?.items || []);
+    } catch (err) {
+      console.error("Dashboard failed to retrieve active statuses:", err);
+    }
   }
 
+  // Automatic connection health check loop (polls every 15s)
   useEffect(() => {
-    async function boot() {
+    loadDashboardData();
+    const interval = setInterval(async () => {
       try {
-        await loadDashboard();
+        const healthData = await fetchHealth().catch(() => ({
+          backend: "offline",
+          database: "offline",
+          ml: { status: "unavailable" }
+        }));
+        setHealth(healthData);
       } catch (err) {
-        setError(err.response?.data?.message || err.message);
+        setHealth({
+          backend: "offline",
+          database: "offline",
+          ml: { status: "unavailable" }
+        });
       }
-    }
-    boot();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
+  const activeMetrics = useMemo(() => {
+    return activeEngine === "india" ? indiaMetrics : ccMetrics;
+  }, [activeEngine, indiaMetrics, ccMetrics]);
+
+  const auroraColors = useMemo(() => {
+    return activeEngine === "india"
+      ? ["#0f766e", "#f59e0b", "#0d9488"]
+      : ["#1e3a8a", "#6366f1", "#ec4899"];
+  }, [activeEngine]);
+
   const modelRows = useMemo(() => {
-    if (!metrics?.models) return [];
-    return Object.entries(metrics.models).map(([name, model]) => ({
+    if (!activeMetrics?.models) return [];
+    return Object.entries(activeMetrics.models).map(([name, model]) => ({
       name: toTitle(name),
       auc: asPercent(model.auc_roc),
       accuracy: asPercent(model.accuracy),
       precision: asPercent(model.average_precision),
       latency: Number(model.avg_batch_latency_ms_per_record || 0)
     }));
-  }, [metrics]);
+  }, [activeMetrics]);
 
-  const affordability = useMemo(() => buildAffordability(applicant), [applicant]);
-  const affordabilityRows = useMemo(() => buildAffordabilityRows(applicant, affordability), [applicant, affordability]);
-  const riskSignals = useMemo(() => buildRiskSignals(applicant, affordability), [applicant, affordability]);
-  const decisionSummary = useMemo(() => summarizeHistory(history), [history]);
+  // Underwriting and Signal Calculations
+  const indiaAffordability = useMemo(() => buildAffordability(indiaApplicant), [indiaApplicant]);
+  const indiaAffordabilityRows = useMemo(() => buildAffordabilityRows(indiaApplicant, indiaAffordability), [indiaApplicant, indiaAffordability]);
+  const indiaSignals = useMemo(() => buildIndiaRiskSignals(indiaApplicant, indiaAffordability), [indiaApplicant, indiaAffordability]);
+
+  const ccSignals = useMemo(() => buildCcRiskSignals(ccApplicant), [ccApplicant]);
+  const ccTrendRows = useMemo(() => buildCcTrendRows(ccApplicant), [ccApplicant]);
+
+  const activeSignals = activeEngine === "india" ? indiaSignals : ccSignals;
+  const activeLatest = activeEngine === "india" ? latestIndia : latestCc;
 
   const filteredHistory = useMemo(() => {
-    const indiaRows = history.filter((item) => item.applicant?.market === "India" || item.applicant?.loan_amount_inr);
-    if (riskFilter === "All") return indiaRows;
-    return indiaRows.filter((item) => item.result?.risk_tier === riskFilter);
-  }, [history, riskFilter]);
+    return history.filter((item) => {
+      const isIndia = item.applicant?.market === "India" || item.applicant?.loan_amount_inr;
+      const matchesEngine = activeEngine === "india" ? isIndia : !isIndia;
+      if (!matchesEngine) return false;
+      if (riskFilter === "All") return true;
+      return item.result?.risk_tier === riskFilter;
+    });
+  }, [history, activeEngine, riskFilter]);
 
   const trendRows = useMemo(() => {
     return filteredHistory
@@ -155,23 +172,27 @@ function App() {
       }));
   }, [filteredHistory]);
 
-  function updateField(field, value) {
-    setApplicant((current) => ({ ...current, [field]: Number(value) }));
+  function handleIndiaFieldUpdate(field, value) {
+    setIndiaApplicant((current) => ({ ...current, [field]: Number(value) }));
   }
 
-  function updateTextField(field, value) {
-    setApplicant((current) => ({ ...current, [field]: value }));
+  function handleIndiaTextFieldUpdate(field, value) {
+    setIndiaApplicant((current) => ({ ...current, [field]: value }));
   }
 
-  function updateBoolean(field, value) {
-    setApplicant((current) => ({ ...current, [field]: value }));
+  function handleIndiaBooleanUpdate(field, value) {
+    setIndiaApplicant((current) => ({ ...current, [field]: value }));
+  }
+
+  function handleCcFieldUpdate(field, value) {
+    setCcApplicant((current) => ({ ...current, [field]: Number(value) }));
   }
 
   async function handleRefresh() {
     setRefreshing(true);
     setError("");
     try {
-      await loadDashboard();
+      await loadDashboardData();
     } catch (err) {
       setError(err.response?.data?.message || err.message);
     } finally {
@@ -184,10 +205,15 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const response = await submitIndiaScore(applicant);
-      setLatest(response.result);
+      if (activeEngine === "india") {
+        const response = await submitIndiaScore(indiaApplicant);
+        setLatestIndia(response.result);
+      } else {
+        const response = await submitScore(ccApplicant);
+        setLatestCc(response.result);
+      }
       const scoreData = await fetchScores();
-      setHistory(scoreData.items || []);
+      setHistory(scoreData?.items || []);
     } catch (err) {
       setError(err.response?.data?.message || err.message);
     } finally {
@@ -197,116 +223,116 @@ function App() {
 
   return (
     <main className="app-shell">
-      <AuroraBackground />
+      <AuroraBackground colorStops={auroraColors} />
       <div className="ambient-grid" aria-hidden="true" />
-      <section className="topbar">
-        <div>
-          <span className="eyebrow">India Loan Risk AI</span>
-          <h1>Indian Credit Risk Workbench</h1>
-          <p>Score Indian-style loan applications with rupee inputs, CIBIL-like bureau signals, EMI affordability, LTV, DTI, and audit-ready decision history.</p>
-        </div>
-        <div className="status-strip">
-          <Status icon={<Activity />} label="API" value={health?.backend || "checking"} />
-          <Status icon={<Database />} label="Mongo" value={health?.database || "checking"} />
-          <Status icon={<Sparkles />} label="ML" value={health?.ml?.india_selected_model || "checking"} />
-          <button className="icon-action" type="button" onClick={handleRefresh} aria-label="Refresh dashboard" title="Refresh dashboard">
-            <RefreshCw className={refreshing ? "spin" : ""} />
-          </button>
-        </div>
+      
+      {/* Header with dynamic status dot connection monitor */}
+      <Header 
+        health={health} 
+        activeEngine={activeEngine} 
+        refreshing={refreshing} 
+        onRefresh={handleRefresh} 
+      />
+
+      {/* Engine Switcher */}
+      <section className="engine-tabs">
+        <button 
+          className={`tab-btn ${activeEngine === "india" ? "active" : ""}`} 
+          onClick={() => { setActiveEngine("india"); setError(""); }}
+        >
+          <IndianRupee size={18} />
+          <span>India Loan Risk Engine</span>
+        </button>
+        <button 
+          className={`tab-btn ${activeEngine === "credit_card" ? "active" : ""}`} 
+          onClick={() => { setActiveEngine("credit_card"); setError(""); }}
+        >
+          <CreditCard size={18} />
+          <span>Credit Card Default Engine</span>
+        </button>
       </section>
 
       {error && <div className="alert">{error}</div>}
 
-      <section className="metric-grid" aria-label="India model overview">
-        <Metric icon={<BadgeCheck />} label="Selected Model" value={toTitle(metrics?.selected_model || "Loading")} />
-        <Metric icon={<Gauge />} label="AUC-ROC" value={metrics?.selected_auc_roc || "..."} />
-        <Metric icon={<FileClock />} label="Training Records" value={formatNumber(metrics?.dataset?.records || 0)} />
-        <Metric icon={<ShieldAlert />} label="Indian Decisions" value={filteredHistory.length} />
+      <section className="metric-grid" aria-label="Active Model Metrics">
+        <Metric icon={<BadgeCheck />} label="Selected Model" value={toTitle(activeMetrics?.selected_model || "Loading")} />
+        <Metric icon={<Gauge />} label="AUC-ROC" value={activeMetrics?.selected_auc_roc || "..."} />
+        <Metric icon={<FileClock />} label="Training Records" value={formatNumber(activeMetrics?.dataset?.records || 0)} />
+        <Metric icon={<ShieldAlert />} label="Decisions Tracked" value={filteredHistory.length} />
       </section>
 
       <section className="workspace-grid">
-        <form className="panel form-panel" onSubmit={handleSubmit}>
-          <div className="panel-title split-title">
-            <div>
-              <div className="title-line">
-                <IndianRupee />
-                <h2>Indian Loan Application</h2>
-              </div>
-              <p>Use annual income, requested loan, collateral value, bureau score, and repayment burden.</p>
-            </div>
-            <button className="primary-action compact" type="button" onClick={handleSubmit} disabled={loading}>
-              {loading ? <Loader2 className="spin" /> : <CheckCircle2 />}
-              Score
-            </button>
-          </div>
-
-          <div className="preset-row">
-            {Object.entries(applicantPresets).map(([key, value]) => (
-              <button className="preset-button" type="button" key={key} onClick={() => setApplicant(value)}>
-                {key}
-              </button>
-            ))}
-          </div>
-
-          <div className="form-section">
-            <h3>Loan and Affordability</h3>
-            <div className="form-grid">
-              <NumberField label="Loan Amount (INR)" value={applicant.loan_amount_inr} step="50000" onChange={(v) => updateField("loan_amount_inr", v)} />
-              <NumberField label="Annual Income (INR)" value={applicant.annual_income_inr} step="50000" onChange={(v) => updateField("annual_income_inr", v)} />
-              <NumberField label="Property / Asset Value" value={applicant.property_value_inr} step="50000" onChange={(v) => updateField("property_value_inr", v)} />
-              <NumberField label="Tenure (Months)" value={applicant.term_months} min="6" max="480" step="6" onChange={(v) => updateField("term_months", v)} />
-              <NumberField label="Existing DTI %" value={applicant.dti_ratio} min="0" max="100" onChange={(v) => updateField("dti_ratio", v)} />
-            </div>
-          </div>
-
-          <div className="form-section">
-            <h3>Applicant and Bureau</h3>
-            <div className="form-grid">
-              <NumberField label="CIBIL Score" value={applicant.cibil_score} min="300" max="900" step="5" onChange={(v) => updateField("cibil_score", v)} />
-              <SelectField label="Age Band" value={applicant.age_band} onChange={(v) => updateTextField("age_band", v)} options={["25-34", "35-44", "45-54", "55-64", "65-74", ">74"]} />
-              <SelectField label="Gender" value={applicant.gender} onChange={(v) => updateTextField("gender", v)} options={["Male", "Female", "Joint", "Sex Not Available"]} />
-              <SelectField label="Region" value={applicant.region} onChange={(v) => updateTextField("region", v)} options={["North", "south", "central", "North-East"]} />
-              <SelectField label="Bureau" value={applicant.bureau_type} onChange={(v) => updateTextField("bureau_type", v)} options={["CIBIL", "Experian", "CRIF", "Equifax"]} />
-            </div>
-          </div>
-
-          <div className="form-section">
-            <h3>Loan Details</h3>
-            <div className="form-grid">
-              <SelectField label="Loan Product" value={applicant.loan_product} onChange={(v) => updateTextField("loan_product", v)} options={["Home Loan", "Vehicle Loan", "Personal Loan", "Business Loan"]} />
-              <SelectField label="Purpose" value={applicant.loan_purpose} onChange={(v) => updateTextField("loan_purpose", v)} options={["Home Purchase", "Balance Transfer", "Home Improvement", "Business Expansion", "Vehicle Purchase", "Personal Use"]} />
-              <SelectField label="Employment" value={applicant.employment_type} onChange={(v) => updateTextField("employment_type", v)} options={["Salaried", "Self-employed"]} />
-              <ToggleField label="Co-applicant" checked={applicant.co_applicant} onChange={(v) => updateBoolean("co_applicant", v)} />
-              <ToggleField label="Pre-approved" checked={applicant.pre_approved} onChange={(v) => updateBoolean("pre_approved", v)} />
-            </div>
-          </div>
-        </form>
+        {activeEngine === "india" ? (
+          <IndiaLoanForm 
+            applicant={indiaApplicant}
+            presets={applicantPresets}
+            loading={loading}
+            onSubmit={handleSubmit}
+            onFieldChange={handleIndiaFieldUpdate}
+            onTextFieldChange={handleIndiaTextFieldUpdate}
+            onBooleanChange={handleIndiaBooleanUpdate}
+            onSetPreset={setIndiaApplicant}
+          />
+        ) : (
+          <CreditCardForm 
+            applicant={ccApplicant}
+            presets={ccPresets}
+            loading={loading}
+            onSubmit={handleSubmit}
+            onFieldChange={handleCcFieldUpdate}
+            onSetPreset={setCcApplicant}
+            ccFormTab={ccFormTab}
+            setCcFormTab={setCcFormTab}
+            payStatusOptions={payStatusOptions}
+          />
+        )}
 
         <aside className="side-stack">
-          <ResultPanel latest={latest} metrics={metrics} signals={riskSignals} />
-          <SignalPanel signals={riskSignals} />
+          <ResultPanel 
+            latest={activeLatest} 
+            metrics={activeMetrics} 
+            signals={activeSignals} 
+            activeEngine={activeEngine} 
+          />
+          <SignalPanel signals={activeSignals} activeEngine={activeEngine} />
         </aside>
       </section>
 
       <section className="analytics-grid">
-        <ChartPanel icon={<WalletCards />} title="EMI Affordability" subtitle="Monthly income and estimated EMI as bars, LTV and total obligation as lines.">
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={affordabilityRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#dce4df" />
-              <XAxis dataKey="label" />
-              <YAxis yAxisId="money" tickFormatter={(value) => `₹${Math.round(value / 1000)}k`} />
-              <YAxis yAxisId="percent" orientation="right" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-              <Tooltip formatter={chartValueFormatter} />
-              <Legend />
-              <Bar yAxisId="money" dataKey="monthlyIncome" name="Monthly Income" fill="#2f6f73" radius={[4, 4, 0, 0]} />
-              <Bar yAxisId="money" dataKey="emi" name="Est. EMI" fill="#d08c3f" radius={[4, 4, 0, 0]} />
-              <Line yAxisId="percent" type="monotone" dataKey="ltv" name="LTV" stroke="#5f6caf" strokeWidth={3} dot={{ r: 3 }} />
-              <Line yAxisId="percent" type="monotone" dataKey="obligation" name="Total Obligation" stroke="#a4433f" strokeWidth={3} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartPanel>
+        {activeEngine === "india" ? (
+          <ChartPanel icon={<WalletCards />} title="EMI Affordability Plan" subtitle="Monthly income and estimated EMI as bars; LTV and total obligation ratios as lines.">
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={indiaAffordabilityRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#dce4df" />
+                <XAxis dataKey="label" />
+                <YAxis yAxisId="money" tickFormatter={(value) => `₹${Math.round(value / 1000)}k`} />
+                <YAxis yAxisId="percent" orientation="right" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                <Tooltip formatter={chartValueFormatter} />
+                <Legend />
+                <Bar yAxisId="money" dataKey="monthlyIncome" name="Monthly Income" fill="#2f6f73" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="money" dataKey="emi" name="Est. EMI" fill="#d08c3f" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="percent" type="monotone" dataKey="ltv" name="LTV" stroke="#5f6caf" strokeWidth={3} dot={{ r: 3 }} />
+                <Line yAxisId="percent" type="monotone" dataKey="obligation" name="Total Obligation" stroke="#a4433f" strokeWidth={3} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+        ) : (
+          <ChartPanel icon={<WalletCards />} title="Billing & Repayment Trend" subtitle="Monthly statement balances (bars) vs. payment amounts (lines) over the last 6 months.">
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={ccTrendRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#dce4df" />
+                <XAxis dataKey="label" />
+                <YAxis yAxisId="money" tickFormatter={(value) => `$${Math.round(value / 1000)}k`} />
+                <Tooltip formatter={ccChartValueFormatter} />
+                <Legend />
+                <Bar yAxisId="money" dataKey="bill" name="Statement Balance" fill="#5f6caf" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="money" type="monotone" dataKey="payment" name="Amount Paid" stroke="#d08c3f" strokeWidth={3} dot={{ r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+        )}
 
-        <ChartPanel icon={<BarChart3 />} title="Model Comparison" subtitle="AUC, accuracy, average precision, and latency for the real-data training run.">
+        <ChartPanel icon={<BarChart3 />} title="Model Metrics Comparison" subtitle="AUC-ROC, accuracy, average precision, and latency for active model benchmarks.">
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={modelRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#dce4df" />
@@ -324,83 +350,18 @@ function App() {
         </ChartPanel>
       </section>
 
-      <section className="panel history-panel">
-        <div className="panel-title split-title">
-          <div>
-            <div className="title-line">
-              <Database />
-              <h2>India Decision History</h2>
-            </div>
-            <p>Recent India-loan scores with default probability and latency trend.</p>
-          </div>
-          <div className="filter-row" aria-label="Risk tier filter">
-            {filterOptions.map((tier) => (
-              <button className={riskFilter === tier ? "filter active" : "filter"} type="button" key={tier} onClick={() => setRiskFilter(tier)}>
-                {tier}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="history-grid">
-          <div className="trend-box">
-            <ResponsiveContainer width="100%" height={250}>
-              <ComposedChart data={trendRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dce4df" />
-                <XAxis dataKey="label" />
-                <YAxis yAxisId="probability" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                <YAxis yAxisId="latency" orientation="right" tickFormatter={(value) => `${value}ms`} />
-                <Tooltip formatter={historyValueFormatter} />
-                <Legend />
-                <Bar yAxisId="latency" dataKey="latency" name="Latency" fill="#c8d8d2" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="probability" type="monotone" dataKey="probability" name="Default Probability" stroke="#a4433f" strokeWidth={3} dot={{ r: 3 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Loan</th>
-                  <th>CIBIL</th>
-                  <th>Probability</th>
-                  <th>Tier</th>
-                  <th>Decision</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHistory.map((item) => (
-                  <tr key={item._id}>
-                    <td>{new Date(item.createdAt).toLocaleString()}</td>
-                    <td>{formatCurrency(item.applicant?.loan_amount_inr || item.applicant?.limit_bal)}</td>
-                    <td>{item.applicant?.cibil_score || "-"}</td>
-                    <td>{Math.round((item.result?.default_probability || 0) * 100)}%</td>
-                    <td><span className={`tier ${item.result?.risk_tier?.toLowerCase()}`}>{item.result?.risk_tier}</span></td>
-                    <td>{toTitle(item.result?.decision || "")}</td>
-                  </tr>
-                ))}
-                {!filteredHistory.length && (
-                  <tr>
-                    <td colSpan="6" className="empty-row">Score an Indian loan application to start this history.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      {/* Decision Table */}
+      <HistoryTable 
+        filteredHistory={filteredHistory}
+        activeEngine={activeEngine}
+        riskFilter={riskFilter}
+        setRiskFilter={setRiskFilter}
+        filterOptions={filterOptions}
+        formatCurrency={formatCurrency}
+        formatGlobalCurrency={formatGlobalCurrency}
+        toTitle={toTitle}
+      />
     </main>
-  );
-}
-
-function Status({ icon, label, value }) {
-  return (
-    <div className="status-pill">
-      {icon}
-      <span>{label}</span>
-      <strong>{toTitle(value)}</strong>
-    </div>
   );
 }
 
@@ -429,38 +390,7 @@ function ChartPanel({ icon, title, subtitle, children }) {
   );
 }
 
-function NumberField({ label, value, onChange, min, max, step = "1" }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input type="number" value={value} min={min} max={max} step={step} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  );
-}
-
-function SelectField({ label, value, onChange, options }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ToggleField({ label, checked, onChange }) {
-  return (
-    <label className="field toggle-field">
-      <span>{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-    </label>
-  );
-}
-
-function ResultPanel({ latest, metrics, signals }) {
+function ResultPanel({ latest, metrics, signals, activeEngine }) {
   const probability = latest ? Math.round(latest.default_probability * 100) : 0;
   return (
     <section className="panel result-panel">
@@ -477,7 +407,7 @@ function ResultPanel({ latest, metrics, signals }) {
       <div className="decision-grid">
         <div>
           <span>Risk Tier</span>
-          <strong>{latest?.risk_tier || "Pending"}</strong>
+          <strong className={`risk-text ${latest?.risk_tier?.toLowerCase() || ""}`}>{latest?.risk_tier || "Pending"}</strong>
         </div>
         <div>
           <span>Decision</span>
@@ -488,15 +418,19 @@ function ResultPanel({ latest, metrics, signals }) {
           <strong>{metrics?.selected_auc_roc || "..."}</strong>
         </div>
         <div>
-          <span>EMI Burden</span>
-          <strong>{signals.emiBurden}%</strong>
+          <span>
+            {activeEngine === "india" ? "EMI Burden" : "Utilization"}
+          </span>
+          <strong className="risk-value">
+            {activeEngine === "india" ? `${signals.emiBurden}%` : `${signals.utilization}%`}
+          </strong>
         </div>
       </div>
     </section>
   );
 }
 
-function SignalPanel({ signals }) {
+function SignalPanel({ signals, activeEngine }) {
   return (
     <section className="panel signal-panel">
       <div className="panel-title">
@@ -505,12 +439,21 @@ function SignalPanel({ signals }) {
           <h2>Underwriting Signals</h2>
         </div>
       </div>
-      <div className="signal-list">
-        <Signal label="Loan-to-value" value={`${signals.ltv}%`} tone={signals.ltv > 85 ? "danger" : signals.ltv > 70 ? "warn" : "good"} />
-        <Signal label="EMI burden" value={`${signals.emiBurden}%`} tone={signals.emiBurden > 45 ? "danger" : signals.emiBurden > 32 ? "warn" : "good"} />
-        <Signal label="Total obligation" value={`${signals.totalObligation}%`} tone={signals.totalObligation > 60 ? "danger" : signals.totalObligation > 45 ? "warn" : "good"} />
-        <Signal label="CIBIL band" value={signals.cibilBand} tone={signals.cibilScore < 680 ? "danger" : signals.cibilScore < 730 ? "warn" : "good"} />
-      </div>
+      {activeEngine === "india" ? (
+        <div className="signal-list">
+          <Signal label="Loan-to-value (LTV)" value={`${signals.ltv}%`} tone={signals.ltv > 85 ? "danger" : signals.ltv > 70 ? "warn" : "good"} />
+          <Signal label="EMI burden" value={`${signals.emiBurden}%`} tone={signals.emiBurden > 45 ? "danger" : signals.emiBurden > 32 ? "warn" : "good"} />
+          <Signal label="Total obligation" value={`${signals.totalObligation}%`} tone={signals.totalObligation > 60 ? "danger" : signals.totalObligation > 45 ? "warn" : "good"} />
+          <Signal label="CIBIL band" value={signals.cibilBand} tone={signals.cibilScore < 680 ? "danger" : signals.cibilScore < 730 ? "warn" : "good"} />
+        </div>
+      ) : (
+        <div className="signal-list">
+          <Signal label="Credit Utilization" value={`${signals.utilization}%`} tone={signals.utilization > 80 ? "danger" : signals.utilization > 50 ? "warn" : "good"} />
+          <Signal label="Avg Repayment Ratio" value={`${signals.repaymentRatio}%`} tone={signals.repaymentRatio < 20 ? "danger" : signals.repaymentRatio < 50 ? "warn" : "good"} />
+          <Signal label="Max Delay Code" value={signals.maxDelay <= 0 ? "No Delay" : `${signals.maxDelay} Mo.`} tone={signals.maxDelay >= 2 ? "danger" : signals.maxDelay === 1 ? "warn" : "good"} />
+          <Signal label="Credit Limit Band" value={signals.cibilBand} tone={signals.limit < 50000 ? "warn" : "good"} />
+        </div>
+      )}
     </section>
   );
 }
@@ -546,7 +489,7 @@ function buildAffordabilityRows(applicant, affordability) {
   ];
 }
 
-function buildRiskSignals(applicant, affordability) {
+function buildIndiaRiskSignals(applicant, affordability) {
   const score = Number(applicant.cibil_score || 0);
   return {
     ...affordability,
@@ -555,15 +498,69 @@ function buildRiskSignals(applicant, affordability) {
   };
 }
 
-function summarizeHistory(history) {
+function buildCcRiskSignals(applicant) {
+  const limit = Number(applicant.limit_bal || 1);
+  const bill1 = Number(applicant.bill_amt1 || 0);
+  
+  const billAmts = [
+    applicant.bill_amt1, applicant.bill_amt2, applicant.bill_amt3,
+    applicant.bill_amt4, applicant.bill_amt5, applicant.bill_amt6
+  ].map(Number);
+  const payAmts = [
+    applicant.pay_amt1, applicant.pay_amt2, applicant.pay_amt3,
+    applicant.pay_amt4, applicant.pay_amt5, applicant.pay_amt6
+  ].map(Number);
+  
+  const avgBill = billAmts.reduce((a, b) => a + b, 0) / 6;
+  const avgPay = payAmts.reduce((a, b) => a + b, 0) / 6;
+  
+  const utilization = Math.min(100, Math.round((bill1 / limit) * 100));
+  const repaymentRatio = avgBill > 0 ? Math.min(100, Math.round((avgPay / avgBill) * 100)) : 100;
+  
+  const maxDelay = Math.max(
+    Number(applicant.pay_0 || 0),
+    Number(applicant.pay_2 || 0),
+    Number(applicant.pay_3 || 0),
+    Number(applicant.pay_4 || 0),
+    Number(applicant.pay_5 || 0),
+    Number(applicant.pay_6 || 0)
+  );
+  
+  let cibilBand = "Low Limit";
+  if (limit >= 200000) cibilBand = "High Limit";
+  else if (limit >= 70000) cibilBand = "Medium Limit";
+
   return {
-    manualReviews: history.filter((item) => item.result?.decision === "manual_review").length
+    utilization,
+    repaymentRatio,
+    maxDelay,
+    cibilBand,
+    limit
   };
+}
+
+function buildCcTrendRows(applicant) {
+  return [
+    { label: "M-6", bill: applicant.bill_amt6, payment: applicant.pay_amt6 },
+    { label: "M-5", bill: applicant.bill_amt5, payment: applicant.pay_amt5 },
+    { label: "M-4", bill: applicant.bill_amt4, payment: applicant.pay_amt4 },
+    { label: "M-3", bill: applicant.bill_amt3, payment: applicant.pay_amt3 },
+    { label: "M-2", bill: applicant.bill_amt2, payment: applicant.pay_amt2 },
+    { label: "M-1", bill: applicant.bill_amt1, payment: applicant.pay_amt1 }
+  ].map(row => ({
+    ...row,
+    bill: Number(row.bill || 0),
+    payment: Number(row.payment || 0)
+  }));
 }
 
 function chartValueFormatter(value, name) {
   if (name === "LTV" || name === "Total Obligation") return [`${value}%`, name];
   return [formatCurrency(value), name];
+}
+
+function ccChartValueFormatter(value, name) {
+  return [formatGlobalCurrency(value), name];
 }
 
 function modelValueFormatter(value, name) {
@@ -590,6 +587,14 @@ function formatCurrency(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
+    maximumFractionDigits: 0
+  }).format(Number(value || 0));
+}
+
+function formatGlobalCurrency(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
     maximumFractionDigits: 0
   }).format(Number(value || 0));
 }

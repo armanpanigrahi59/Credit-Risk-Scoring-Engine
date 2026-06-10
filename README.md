@@ -1,169 +1,359 @@
 # Credit Risk Scoring Engine
 
-A deployable full-stack credit risk scoring project built with:
+A production-ready, full-stack credit risk scoring and financial underwriting workbench. The application uses a MERN (MongoDB, Express, React, Node.js) architecture combined with a dedicated Python FastAPI service to serving scikit-learn machine learning classifiers.
 
-- React + Vite frontend for applicant scoring, model monitoring, and decision history.
-- Node.js + Express backend for API orchestration and MongoDB persistence.
-- MongoDB for audit-ready score history.
-- Python + FastAPI + scikit-learn for ML training and real-time model serving.
+---
 
-The project now includes two ML tracks:
+## 📖 Project Overview
 
-- Credit-card default model trained on the public **Default of Credit Card Clients** dataset from OpenML/UCI.
-- India-facing loan-risk model trained on a real public loan-default dataset downloaded from Zenodo, then exposed with rupee, CIBIL-style, LTV, DTI, EMI, co-applicant, and Indian loan-product inputs.
+### Business Problem Solved
+Evaluating creditworthiness is a fundamental process for financial institutions. Slow manual reviews, complex financial metrics, and high delinquency rates increase credit losses. 
+This workbench automates underwriting by offering:
+1. **India Loan Risk Assessment**: Rupee-localized loan evaluations utilizing CIBIL credit bands, LTV ratios, and EMI affordability signals.
+2. **Global Credit Card Default Risk**: Evaluations based on historic statements, demographic parameters, and credit limits to identify default likelihoods.
 
-## Architecture
+### Key Features
+- **Dual-Model Operations**: Tabbed workbench to evaluate either retail loan products or card defaults.
+- **Underwriting Logic**: Automated indicators check LTV, debt obligations, and repayment ratios.
+- **Asynchronous Health Checks**: A background monitoring service caches ML availability to ensure rapid page loading.
+- **Audit Logging**: Persists scored applicants and decisions in MongoDB for regulatory compliance.
+
+---
+
+## 🗺️ System Architecture
+
+```mermaid
+graph TD
+    subgraph Client Layer [Frontend Client - Port 5173]
+        A[React Application] -- User Input Payload --> B[Axios Client API]
+    end
+
+    subgraph Application Layer [MERN Gateway API - Port 5000]
+        C[Express Server] -- Rate Limiting & CORS Checks --> D[Orchestrator Routes]
+        D -- Log Score History --> E[(MongoDB Persistence)]
+        D -- Async Connection Status --> F[Health Monitor Service]
+    end
+
+    subgraph Data Science Layer [Python ML Server - Port 8000]
+        G[FastAPI Service] -- Score Requests --> H[scikit-learn Predictors]
+        F -- Poll Health Checked Status --> G
+        D -- Forward Features Payload --> G
+    end
+```
+
+- **React Web UI** runs on port `5173` (or port `3000` inside Docker).
+- **Express Backend API** runs on port `5000` and serves as a secure proxy, database orchestrator, and rate limiter.
+- **FastAPI ML Service** runs on port `8000` and evaluates prediction models.
+
+---
+
+## 📁 Folder Structure
 
 ```text
-client/          React frontend
-server/          Express API, Mongo persistence, ML proxy routes
-src/             Python ML service and training pipeline
-models/          Trained model and metrics
-data/processed/  Dashboard exports and SQLite sample output
-sql/             Power BI view definitions
+├── client/                      # React Frontend codebase (Vite bundler)
+│   ├── src/
+│   │   ├── components/          # Modularized visual blocks (Header, Forms, Logs)
+│   │   ├── config/              # Constants, presets, and dropdown configurations
+│   │   ├── services/            # Axios API gateways
+│   │   ├── main.jsx             # React entrypoint orchestrator
+│   │   └── styles.css           # Workbench stylesheets
+│   ├── vite.config.js           # Bundle optimizer configuration
+│   └── package.json
+│
+├── server/                      # MERN Gateway Server (Node.js & Express)
+│   ├── src/
+│   │   ├── config.js            # Environment loader
+│   │   ├── db.js                # Database connection utility
+│   │   ├── index.js             # Server entrypoint and middlewares
+│   │   ├── routes/              # Express API endpoints mapping
+│   │   └── services/            # Background connection monitors & ML proxies
+│   └── package.json
+│
+├── src/                         # Python ML Service (FastAPI)
+│   ├── api.py                   # FastAPI prediction service
+│   ├── schemas.py               # Pydantic input/output validations
+│   ├── train.py                 # Credit card model training scripts
+│   └── train_india_loan.py      # India loan model training scripts
+│
+├── models/                      # Joblib model binaries & performance logs
+├── data/                        # Raw datasets and SQLite sample databases
+├── docker-compose.yml           # Docker orchestration recipe
+└── requirements.txt             # Python requirements manifest
 ```
 
-Request flow:
+---
 
-```text
-React app -> Express API -> Python ML service -> trained scikit-learn model
-                  |
-                  +-> MongoDB score history
+## 🛠️ Prerequisites
+
+- **Node.js**: v18.0.0 or higher (Recommended: v20.x LTS)
+- **MongoDB**: Community Edition v6.0 or higher (Recommended: v7.x)
+- **Python**: v3.10 or higher (Recommended: v3.11)
+- **pip**: Package installer for Python (usually bundled)
+
+---
+
+## 🔒 Environment Variables
+
+Create individual environment configurations. Below are environment variable descriptions and templates:
+
+### Frontend Configuration (`client/.env`)
+Vite loads environment variables prefixed with `VITE_`:
+```env
+# Address of the Express orchestration backend API
+VITE_API_URL=http://localhost:5000/api
 ```
 
-## Features
+### Backend Configuration (`server/.env` or root `.env`)
+```env
+# MongoDB Connection URI
+MONGO_URI=mongodb://127.0.0.1:27017/credit-risk-scoring
 
-- User-friendly applicant scoring form.
-- Real-time default probability, risk tier, decision, model version, and latency.
-- Model quality dashboard with AUC and accuracy comparison.
-- MongoDB-backed decision history.
-- Python training pipeline with saved best model.
-- India-focused loan-risk workflow with INR formatting, CIBIL-style score, EMI affordability, LTV and DTI signals.
-- Docker Compose setup for local deployment.
-- Power BI-ready CSV, SQLite, and SQL view outputs.
+# Port on which MERN Express serves the proxy endpoints
+PORT=5000
 
-## Local Setup
+# Environment execution mode (development / production)
+NODE_ENV=development
 
-Install Python dependencies:
+# Location where the Python FastAPI model service is running
+ML_SERVICE_URL=http://127.0.0.1:8000
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+# Path to python environment executable (used to trigger training subprocesses)
+PYTHON_BIN=python
+
+# Whether retraining runs are permitted from API commands (true / false)
+ALLOW_TRAINING=true
 ```
 
-Install Node dependencies:
-
-```bash
-npm run install:all
+### ML Service Configuration (Optional, defaults configured inside code)
+FastAPI parses values from Python environment configurations:
+```env
+# Port on which Uvicorn loads the FastAPI instance
+PORT=8000
+HOST=127.0.0.1
 ```
 
-Copy environment defaults:
+---
 
-```bash
-copy .env.example .env
-```
+## 🗄️ Database Setup
 
-## Train The ML Model
+### Local MongoDB Setup
+1. **Download & Install**: Install MongoDB Community Server from the official website.
+2. **Launch Daemon**: Start the service via command line or Windows Services:
+   ```powershell
+   Start-Service MongoDB
+   ```
+3. **Database Creation**: MongoDB creates databases on the fly when connections write documents. No initial queries are required.
+4. **Verification**: Install [MongoDB Compass](https://www.mongodb.com/products/compass) and connect to `mongodb://localhost:27017` to verify database status.
 
-```bash
-python -m src.train
-```
+### MongoDB Atlas Setup
+1. **Create Account**: Register on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. **Build Cluster**: Deploy a free tier cluster (M0) in your preferred region.
+3. **Obtain Connection String**:
+   - Go to *Database -> Connect -> Connect your application*.
+   - Copy the connection URI: `mongodb+srv://<username>:<password>@cluster0.mongodb.net/creditrisk?retryWrites=true&w=majority`
+4. **Configure Server environment**: Replace the local URI in your `.env` file:
+   ```env
+   MONGO_URI=mongodb+srv://myUser:mySecretPassword@cluster0.mongodb.net/creditrisk?retryWrites=true&w=majority
+   ```
 
-The script saves:
+---
 
-- `models/credit_risk_model.joblib`
-- `models/metrics.json`
-- `data/processed/dashboard_credit_risk.csv`
-- `data/processed/scored_applicants.csv`
-- `data/processed/credit_risk.db`
+## 🔌 API Documentation
 
-Latest local training run:
+### Express Gateway Routing API (`Port 5000`)
 
-- Records: `30,000`
-- Selected model: `hist_gradient_boosting`
-- Validation AUC-ROC: `0.7812`
-- Validation accuracy: `0.8183`
-- Engineered behavior features: `12`
+#### 1. System Health Status
+- **Method**: `GET`
+- **Route**: `/api/health`
+- **Response (200 OK)**:
+  ```json
+  {
+    "status": "healthy",
+    "backend": "ok",
+    "database": "connected",
+    "ml": {
+      "status": "active",
+      "selected_model": "hist_gradient_boosting",
+      "india_selected_model": "hist_gradient_boosting",
+      "lastChecked": "2026-06-10T14:15:00.000Z",
+      "error": null
+    }
+  }
+  ```
 
-## Train The India Loan Model
+#### 2. Score Global Credit Card Default
+- **Method**: `POST`
+- **Route**: `/api/scores`
+- **Payload**:
+  ```json
+  {
+    "applicant": {
+      "limit_bal": 120000,
+      "sex": 2,
+      "education": 2,
+      "marriage": 2,
+      "age": 29,
+      "pay_0": 0, "pay_2": 0, "pay_3": 0, "pay_4": 0, "pay_5": 0, "pay_6": 0,
+      "bill_amt1": 25000, "bill_amt2": 24000, "bill_amt3": 22000, "bill_amt4": 18000, "bill_amt5": 15000, "bill_amt6": 12000,
+      "pay_amt1": 2000, "pay_amt2": 2000, "pay_amt3": 1500, "pay_amt4": 1500, "pay_amt5": 1000, "pay_amt6": 1000
+    }
+  }
+  ```
+- **Response (201 Created)**:
+  ```json
+  {
+    "applicant": { ... },
+    "result": {
+      "default_probability": 0.12,
+      "risk_tier": "Low",
+      "decision": "approve",
+      "model_version": "hist_gradient_boosting",
+      "response_time_ms": 12.35
+    }
+  }
+  ```
+- **Errors**:
+  - `400 Bad Request`: Payload validation fails.
+  - `429 Too Many Requests`: Rate limiter triggered.
 
-```bash
-npm run train:india
-```
+#### 3. Score India Loan Risk
+- **Method**: `POST`
+- **Route**: `/api/scores/india`
+- **Payload**:
+  ```json
+  {
+    "applicant": {
+      "loan_amount_inr": 2800000,
+      "annual_income_inr": 1200000,
+      "property_value_inr": 4200000,
+      "term_months": 240,
+      "cibil_score": 760,
+      "dti_ratio": 32,
+      "age_band": "35-44",
+      "gender": "Joint",
+      "region": "North",
+      "loan_product": "Home Loan",
+      "loan_purpose": "Home Purchase",
+      "employment_type": "Salaried",
+      "bureau_type": "CIBIL",
+      "co_applicant": true,
+      "pre_approved": false
+    }
+  }
+  ```
+- **Response (201 Created)**:
+  ```json
+  {
+    "applicant": { ... },
+    "result": {
+      "default_probability": 0.04,
+      "risk_tier": "Low",
+      "decision": "approve",
+      "model_version": "hist_gradient_boosting",
+      "response_time_ms": 10.42
+    }
+  }
+  ```
 
-This trains `models/india_loan_model.joblib` from `data/raw/loan_default_zenodo.csv`.
+#### 4. Audit Scoring History Log
+- **Method**: `GET`
+- **Route**: `/api/scores`
+- **Query Parameters**:
+  - `limit`: Number of records to return (Default: 25).
+  - `risk_tier`: Filter records by risk tier (`Low`, `Medium`, `High`, `Critical`).
+- **Response (200 OK)**:
+  ```json
+  {
+    "items": [ ... ],
+    "total": 12,
+    "persistence": "connected"
+  }
+  ```
 
-Latest local India-loan training run:
+---
 
-- Records: `148,670`
-- Selected model: `hist_gradient_boosting`
-- Validation AUC-ROC: `0.8772`
-- Validation accuracy: `0.8945`
-- Dataset source: `https://zenodo.org/records/17833064`
-- Note: the UI is localized for Indian loan assessment; the public dataset is real loan-default data, not private Indian bureau data.
+### FastAPI Raw ML Service Routing (`Port 8000`)
 
-## Run Locally
+| Method | Endpoint | Description | Expected Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/health` | Live loading indicators of joblib model files. | None | Status JSON |
+| **POST** | `/score` | Returns Credit Card default evaluations. | Applicant Features Schema | ScoreResponse JSON |
+| **POST** | `/india/score`| Returns India Loan evaluations. | India Loan Schema | ScoreResponse JSON |
 
-Start MongoDB locally first, or use Docker for MongoDB:
+---
 
-```bash
-docker run --name credit-risk-mongo -p 27017:27017 -d mongo:7
-```
+## 🛠️ Step-by-Step Server Setup
 
-Terminal 1, start the Python ML service:
+### Step A: MERN Backend API Setup
+1. Open a terminal in the root directory and navigate to `server/`:
+   ```bash
+   cd server
+   npm install
+   ```
+2. Configure environmental options in `server/.env`.
+3. Launch the API Gateway:
+   ```bash
+   npm run dev
+   ```
+4. Verify backend health check by visiting: `http://localhost:5000/api/health`.
 
-```bash
-npm run ml
-```
+### Step B: Python ML Service Setup
+1. In a new terminal, navigate to the root directory.
+2. Initialize virtual environments and fetch modules:
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+3. Run model training scripts:
+   ```bash
+   # Train India Loan Model
+   npm run train:india
+   # Train Credit Card Model
+   npm run train
+   ```
+4. Fire up the Uvicorn FastAPI server:
+   ```bash
+   npm run ml
+   ```
+5. Open browser check: `http://127.0.0.1:8000/health`.
 
-Terminal 2, start the MERN app:
+### Step C: React Frontend client Setup
+1. In a new terminal, navigate to `client/`:
+   ```bash
+   cd client
+   npm install
+   ```
+2. Start the Vite React client dev server:
+   ```bash
+   npm run dev
+   ```
+3. Visit the dashboard: `http://localhost:5173`.
 
-```bash
-npm run dev
-```
+---
 
-Open:
+## 💡 Troubleshooting & FAQ
 
-- Frontend: `http://localhost:5173`
-- Backend health: `http://localhost:5000/api/health`
-- Python API docs: `http://127.0.0.1:8000/docs`
+#### Q: How does the AI Engine active status connect?
+**A**: The connection is fully automated. The Express Gateway's background monitor periodically pings FastAPI. The frontend client polls Express and displays `🟢 AI Engine Active` or `🔴 AI Engine Unavailable` dynamically.
 
-## Run With Docker Compose
+#### Q: The client states Database is degraded/offline.
+**A**: Ensure your MongoDB server is active. If using a cloud MongoDB Atlas link, double-check your connection credentials and IP whitelist filters.
 
-```bash
-docker compose up --build
-```
+#### Q: Getting CORS block errors in web console.
+**A**: The backend Express server limits CORS to trusted ports. Verify your local Vite dev server port matches client-side targets.
 
-Open:
+---
 
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:5000/api/health`
-- ML service: `http://localhost:8000/health`
+## 🤝 Contribution Guidelines
 
-## API
-
-Score an applicant through the MERN backend:
-
-```bash
-curl -X POST http://localhost:5000/api/scores ^
-  -H "Content-Type: application/json" ^
-  -d "{\"limit_bal\":200000,\"sex\":2,\"education\":2,\"marriage\":1,\"age\":35,\"pay_0\":0,\"pay_2\":0,\"pay_3\":0,\"pay_4\":0,\"pay_5\":0,\"pay_6\":0,\"bill_amt1\":12000,\"bill_amt2\":11800,\"bill_amt3\":11000,\"bill_amt4\":10500,\"bill_amt5\":9800,\"bill_amt6\":9300,\"pay_amt1\":2000,\"pay_amt2\":1900,\"pay_amt3\":1800,\"pay_amt4\":1700,\"pay_amt5\":1600,\"pay_amt6\":1500}"
-```
-
-Useful backend routes:
-
-- `GET /api/health`
-- `GET /api/metrics`
-- `GET /api/india/metrics`
-- `POST /api/scores`
-- `POST /api/scores/india`
-- `GET /api/scores`
-- `POST /api/train` when `ALLOW_TRAINING=true`
-
-## Deployment Notes
-
-- In production, set `ALLOW_TRAINING=false` and run retraining as a controlled job.
-- Set `MONGO_URI` to a hosted MongoDB instance such as MongoDB Atlas.
-- Set `ML_SERVICE_URL` to the deployed Python service URL.
-- The frontend Docker image proxies `/api` to the backend service through Nginx.
+1. Fork the repository and check out a new branch:
+   ```bash
+   git checkout -b feature/cool-new-indicator
+   ```
+2. Verify formatting and compile configurations:
+   ```bash
+   npm run build --prefix client
+   ```
+3. Maintain modular component practices (do not bloat core entrypoints).
+4. Issue a detailed Pull Request detailing the changes and verification runs.
