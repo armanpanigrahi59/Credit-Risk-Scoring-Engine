@@ -15,7 +15,7 @@
       "auc_roc": 0.8148,
       "average_precision": 0.7358,
       "accuracy": 0.8254,
-      "avg_batch_latency_ms_per_record": 0.0016,
+      "avg_batch_latency_ms_per_record": 0.0027,
       "classification_report": {
         "0": {
           "precision": 0.8727910602910602,
@@ -48,7 +48,7 @@
       "auc_roc": 0.8712,
       "average_precision": 0.8164,
       "accuracy": 0.882,
-      "avg_batch_latency_ms_per_record": 0.0134,
+      "avg_batch_latency_ms_per_record": 0.0288,
       "classification_report": {
         "0": {
           "precision": 0.8943941228033561,
@@ -81,7 +81,7 @@
       "auc_roc": 0.8481,
       "average_precision": 0.7692,
       "accuracy": 0.8483,
-      "avg_batch_latency_ms_per_record": 0.0133,
+      "avg_batch_latency_ms_per_record": 0.0246,
       "classification_report": {
         "0": {
           "precision": 0.8771020356555822,
@@ -114,7 +114,7 @@
       "auc_roc": 0.8772,
       "average_precision": 0.8251,
       "accuracy": 0.8945,
-      "avg_batch_latency_ms_per_record": 0.0098,
+      "avg_batch_latency_ms_per_record": 0.0107,
       "classification_report": {
         "0": {
           "precision": 0.884779743599984,

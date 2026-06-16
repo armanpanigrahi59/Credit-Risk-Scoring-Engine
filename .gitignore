@@ -8,3 +8,5 @@ node_modules/
 dist/
 .env
 npm-debug.log*
+*.db
+*-dev*.log
