@@ -9,17 +9,41 @@ export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
     setError("");
+    setLoading(true);
     try {
       await register(form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed");
+      if (Array.isArray(err.response?.data?.detail)) {
+        setError(err.response.data.detail.map(d => d.msg).join(". "));
+      } else {
+        setError(err.response?.data?.detail || "Registration failed. Try a different email.");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
-  return <AuthCard title="Create Account" form={form} setForm={setForm} submit={submit} error={error} button="Register" footer={<span>Already registered? <Link to="/login">Login</Link></span>} />;
+  return (
+    <AuthCard
+      title="Create Account"
+      subtitle="Register a secure RiskEngine analyst account"
+      form={form}
+      setForm={setForm}
+      submit={submit}
+      error={error}
+      loading={loading}
+      button="Create Analyst Account"
+      footer={
+        <span>
+          Already registered? <Link to="/login">Sign in here</Link>
+        </span>
+      }
+    />
+  );
 }
